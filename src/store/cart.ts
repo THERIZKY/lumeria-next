@@ -4,6 +4,7 @@ import { MenuItem } from '@/data/menu';
 
 export interface CartItem extends MenuItem {
   quantity: number;
+  topping?: string;
 }
 
 interface CartStore {
@@ -11,6 +12,7 @@ interface CartStore {
   addItem: (item: MenuItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
+  updateTopping: (id: string, topping: string) => void;
   clearCart: () => void;
   getTotal: () => number;
   getItemCount: () => number;
@@ -51,6 +53,13 @@ export const useCartStore = create<CartStore>()(
             ),
           };
         });
+      },
+      updateTopping: (id, topping) => {
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.ID === id ? { ...item, topping } : item
+          ),
+        }));
       },
       clearCart: () => set({ items: [] }),
       getTotal: () => {
