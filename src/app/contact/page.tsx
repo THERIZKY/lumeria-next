@@ -1,111 +1,211 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { motion } from "framer-motion";
+import { ScrollReveal } from "@/components/motion/ScrollReveal";
+import { MapPin, Phone, Clock, Send } from "lucide-react";
 
 export default function ContactPage() {
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [formStatus, setFormStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  );
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Simulate form submission
-    setStatus("success");
+    setFormStatus("success");
     e.currentTarget.reset();
-    
-    setTimeout(() => {
-      setStatus("idle");
-    }, 5000);
+    setTimeout(() => setFormStatus("idle"), 5000);
   };
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="bg-[#6d4c41] text-white py-10 text-center mb-8">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold">Kontak Kami</h1>
+      {/* Hero */}
+      <section className="relative pt-32 pb-16 bg-gradient-to-b from-[#222] to-[#1A1A1A]">
+        <div className="container mx-auto px-6 text-center">
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-[#C8A97E] text-sm uppercase tracking-[0.3em] mb-3"
+          >
+            Hubungi Kami
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="font-[var(--font-heading)] text-5xl md:text-6xl font-bold text-[#F5F0EB]"
+          >
+            Kontak
+          </motion.h1>
         </div>
-      </header>
+      </section>
 
-      <main className="container mx-auto px-4 py-8 flex-grow">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Info Section */}
-          <section className="bg-white p-8 rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold text-[#3e2723] mb-6">Informasi Kontak</h2>
-            <div className="space-y-4 text-lg text-gray-700">
-              <p>
-                <strong className="block text-[#3e2723]">Alamat:</strong>
-                Jl. Daan Mogot No.KM. 11 1, RT.12/RW.4, Kedaung Kali Angke, Kecamatan Cengkareng, Kota Jakarta Barat, Daerah Khusus Ibukota Jakarta 11710, Indonesia
-              </p>
-              <p>
-                <strong className="block text-[#3e2723]">Telepon:</strong>
-                <a href="https://wa.me/62895367044045?text=Halo%20saya%20ingin%20pesan" target="_blank" rel="noopener noreferrer" className="text-[#8d6e63] hover:underline">
-                  0895367044045
-                </a>
-              </p>
-              <p>
-                <strong className="block text-[#3e2723]">Instagram:</strong>
-                <a href="https://www.instagram.com/lumeriaaaa.id?igsh=aGNlbnRvZnE0MjRj" target="_blank" rel="noopener noreferrer" className="text-[#8d6e63] hover:underline">
-                  Lumeria id
-                </a>
-              </p>
-              <p>
-                <strong className="block text-[#3e2723]">Jam Operasional:</strong>
-                08.00 - 17.00
-              </p>
-            </div>
-          </section>
+      <section className="py-16 bg-[#1A1A1A] flex-grow">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+            {/* Contact Info */}
+            <ScrollReveal delay={0}>
+              <div className="bg-[#222] rounded-2xl p-8 border border-[#2A2A2A] h-full">
+                <h2 className="font-[var(--font-heading)] text-2xl font-bold text-[#F5F0EB] mb-8">
+                  Informasi Kontak
+                </h2>
+                <div className="space-y-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-[#C8A97E]/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-4 h-4 text-[#C8A97E]" />
+                    </div>
+                    <div>
+                      <p className="text-[#F5F0EB] font-medium mb-1">Alamat</p>
+                      <p className="text-[#B8B0A6] text-sm leading-relaxed">
+                        Jl. Daan Mogot No.KM. 11 1, RT.12/RW.4, Kedaung Kali
+                        Angke, Kecamatan Cengkareng, Kota Jakarta Barat
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-[#C8A97E]/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-4 h-4 text-[#C8A97E]" />
+                    </div>
+                    <div>
+                      <p className="text-[#F5F0EB] font-medium mb-1">Telepon</p>
+                      <a
+                        href="https://wa.me/62895367044045"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#C8A97E] text-sm hover:text-[#E8D5B7] transition-colors"
+                      >
+                        0895367044045
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-[#C8A97E]/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      {/*<Instagram className="w-4 h-4 text-[#C8A97E]" />*/}
+                    </div>
+                    <div>
+                      <p className="text-[#F5F0EB] font-medium mb-1">
+                        Instagram
+                      </p>
+                      <a
+                        href="https://www.instagram.com/lumeriaaaa.id"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#C8A97E] text-sm hover:text-[#E8D5B7] transition-colors"
+                      >
+                        @lumeriaaaa.id
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-[#C8A97E]/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-4 h-4 text-[#C8A97E]" />
+                    </div>
+                    <div>
+                      <p className="text-[#F5F0EB] font-medium mb-1">
+                        Jam Operasional
+                      </p>
+                      <p className="text-[#B8B0A6] text-sm">
+                        08.00 - 17.00 WIB
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
 
-          {/* Form Section */}
-          <section className="bg-white p-8 rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold text-[#3e2723] mb-6">Kirim Pesan kepada Kami</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nama Lengkap:</Label>
-                <Input id="name" name="name" required placeholder="Masukkan nama Anda" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email Anda:</Label>
-                <Input id="email" name="email" type="email" required placeholder="Masukkan email Anda" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="subject">Subjek:</Label>
-                <Input id="subject" name="subject" placeholder="Subjek pesan Anda" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="message">Pesan Anda:</Label>
-                <Textarea id="message" name="message" rows={5} required placeholder="Tulis pesan Anda di sini..." />
-              </div>
-              
-              <Button type="submit" className="bg-[#8d6e63] hover:bg-[#795548] text-white px-8">
-                Kirim Pesan
-              </Button>
+            {/* Contact Form */}
+            <ScrollReveal delay={0.1}>
+              <div className="bg-[#222] rounded-2xl p-8 border border-[#2A2A2A] h-full">
+                <h2 className="font-[var(--font-heading)] text-2xl font-bold text-[#F5F0EB] mb-8">
+                  Kirim Pesan
+                </h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="text-[#B8B0A6] text-sm mb-2 block">
+                      Nama Lengkap
+                    </label>
+                    <input
+                      name="name"
+                      required
+                      placeholder="Masukkan nama Anda"
+                      className="w-full bg-[#1A1A1A] border border-[#333] rounded-xl px-4 py-3 text-[#F5F0EB] placeholder:text-[#555] focus:outline-none focus:border-[#C8A97E] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[#B8B0A6] text-sm mb-2 block">
+                      Email
+                    </label>
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="Masukkan email Anda"
+                      className="w-full bg-[#1A1A1A] border border-[#333] rounded-xl px-4 py-3 text-[#F5F0EB] placeholder:text-[#555] focus:outline-none focus:border-[#C8A97E] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[#B8B0A6] text-sm mb-2 block">
+                      Subjek
+                    </label>
+                    <input
+                      name="subject"
+                      placeholder="Subjek pesan Anda"
+                      className="w-full bg-[#1A1A1A] border border-[#333] rounded-xl px-4 py-3 text-[#F5F0EB] placeholder:text-[#555] focus:outline-none focus:border-[#C8A97E] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[#B8B0A6] text-sm mb-2 block">
+                      Pesan
+                    </label>
+                    <textarea
+                      name="message"
+                      rows={5}
+                      required
+                      placeholder="Tulis pesan Anda di sini..."
+                      className="w-full bg-[#1A1A1A] border border-[#333] rounded-xl px-4 py-3 text-[#F5F0EB] placeholder:text-[#555] focus:outline-none focus:border-[#C8A97E] transition-colors resize-none"
+                    />
+                  </div>
 
-              {status === "success" && (
-                <p className="text-green-600 text-sm mt-4">Pesan Anda berhasil dikirim!</p>
-              )}
-              {status === "error" && (
-                <p className="text-red-600 text-sm mt-4">Terjadi kesalahan jaringan atau server. Silakan coba lagi.</p>
-              )}
-            </form>
-          </section>
-        </div>
+                  <button
+                    type="submit"
+                    className="flex items-center gap-2 bg-[#C8A97E] text-[#1A1A1A] px-8 py-3 rounded-xl font-semibold hover:bg-[#E8D5B7] transition-all"
+                  >
+                    <Send className="w-4 h-4" />
+                    Kirim Pesan
+                  </button>
 
-        {/* Map Section */}
-        <section className="bg-white p-8 rounded-lg shadow-sm text-center">
-          <h2 className="text-2xl font-bold text-[#3e2723] mb-6">Lokasi Kami</h2>
-          <div className="w-full h-[450px] rounded-lg overflow-hidden shadow-md">
-            <iframe 
-              src="https://maps.google.com/maps?q=Telkom%20University%20Jakarta%20Kampus%201&z=17&output=embed" 
-              width="100%" 
-              height="100%" 
-              style={{ border: 0 }} 
-              loading="lazy"
-            ></iframe>
+                  {formStatus === "success" && (
+                    <p className="text-green-400 text-sm mt-2">
+                      ✓ Pesan Anda berhasil dikirim!
+                    </p>
+                  )}
+                </form>
+              </div>
+            </ScrollReveal>
           </div>
-        </section>
-      </main>
+
+          {/* Map */}
+          <ScrollReveal>
+            <div className="bg-[#222] rounded-2xl overflow-hidden border border-[#2A2A2A]">
+              <div className="p-6 border-b border-[#2A2A2A]">
+                <h2 className="font-[var(--font-heading)] text-xl font-bold text-[#F5F0EB]">
+                  📍 Lokasi Kami
+                </h2>
+              </div>
+              <div className="w-full h-[400px]">
+                <iframe
+                  src="https://maps.google.com/maps?q=Telkom%20University%20Jakarta%20Kampus%201&z=17&output=embed"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
     </div>
   );
 }
