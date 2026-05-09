@@ -48,7 +48,7 @@ export function Footer() {
                   <FaInstagram className="w-4 h-4" />
                 </a>
                 <a
-                  href="https://wa.me/62895367044045"
+                  href="https://wa.me/6288976183041"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-10 h-10 rounded-full border border-[#333] flex items-center justify-center text-[#B8B0A6] hover:text-[#C8A97E] hover:border-[#C8A97E] transition-all"
@@ -98,10 +98,10 @@ export function Footer() {
                 <p>Jam Operasional: 08.00 - 17.00</p>
                 <p>
                   <a
-                    href="https://wa.me/62895367044045"
+                    href="https://wa.me/6288976183041"
                     className="hover:text-[#C8A97E] transition-colors"
                   >
-                    0895367044045
+                    088976183041
                   </a>
                 </p>
               </div>

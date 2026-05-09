@@ -2,25 +2,33 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAdminStore } from "@/store/admin";
 import { motion } from "framer-motion";
 import { Lock, User } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const login = useAdminStore((state) => state.login);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const success = login(username, password);
-    if (success) {
-      router.push("/admin");
-    } else {
-      setError("Username atau password salah!");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        router.push("/admin");
+      } else {
+        setError(data.error || "Username atau password salah!");
+      }
+    } catch (err) {
+      setError("Terjadi kesalahan. Silakan coba lagi.");
     }
   };
 

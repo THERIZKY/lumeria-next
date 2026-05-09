@@ -70,12 +70,12 @@ export default function ContactPage() {
                     <div>
                       <p className="text-[#F5F0EB] font-medium mb-1">Telepon</p>
                       <a
-                        href="https://wa.me/62895367044045"
+                        href="https://wa.me/6288976183041"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#C8A97E] text-sm hover:text-[#E8D5B7] transition-colors"
                       >
-                        0895367044045
+                        088976183041
                       </a>
                     </div>
                   </div>

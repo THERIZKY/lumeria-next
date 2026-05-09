@@ -8,35 +8,45 @@ import { motion } from "framer-motion";
 import { Printer, ArrowLeft } from "lucide-react";
 import { useMounted } from "@/hooks/useMounted";
 
-interface OrderData {
-  orderID: string;
-  customerName: string;
-  paymentMethod: string;
-  items: { Name: string; quantity: number; Price: number; topping?: string }[];
-  totalAmount: number;
-  orderTime: string;
-}
-
 function ReceiptContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
-  const [orderDetails, setOrderDetails] = useState<OrderData | null>(null);
+  const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [settings, setSettings] = useState<any>({});
+  const [loading, setLoading] = useState(true);
   const mounted = useMounted();
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("checkoutDetails");
-    if (stored) {
+    if (!mounted || !orderId) return;
+    
+    const fetchData = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        if (parsed.order && parsed.order.orderID === orderId) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect -- loading order data from sessionStorage
-          setOrderDetails(parsed.order);
+        const [orderRes, settingsRes] = await Promise.all([
+          fetch(`/api/orders/${orderId}`),
+          fetch("/api/settings")
+        ]);
+        
+        if (orderRes.ok) {
+          const orderData = await orderRes.json();
+          setOrderDetails(orderData);
         }
-      } catch { /* ignore */ }
-    }
-  }, [orderId]);
+        
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setSettings(settingsData);
+        }
+      } catch (error) {
+        console.error("Failed to load receipt data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [orderId, mounted]);
 
   if (!mounted) return null;
+  if (loading) return <div className="text-center text-[#B8B0A6]">Memuat detail pesanan...</div>;
 
   return (
     <div className="max-w-md mx-auto">
@@ -44,13 +54,15 @@ function ReceiptContent() {
         <div className="bg-white text-gray-800 rounded-2xl shadow-xl p-8 font-mono text-sm leading-relaxed mb-8" id="receipt-content">
           <div className="text-center mb-6 border-b border-dashed border-gray-300 pb-4">
             <h2 className="text-2xl font-bold text-[#3e2723] mb-2 font-sans">Lumeria</h2>
-            <p className="text-gray-500 text-xs">Telkom University Jakarta Kampus 1</p>
-            <p className="text-gray-500 text-xs">Jl. Daan Mogot KM 11, Jakarta Barat</p>
+            <p className="text-gray-500 text-xs whitespace-pre-wrap">
+              {settings.storeAddress || "Telkom University Jakarta Kampus 1\nJl. Daan Mogot KM 11, Jakarta Barat"}
+            </p>
           </div>
           <div className="mb-6 space-y-2">
             {[
-              ["ID Pesanan", orderDetails.orderID],
-              ["Waktu", new Date(orderDetails.orderTime).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })],
+              ["ID Pesanan", orderDetails.orderNumber],
+              ["Antrian", orderDetails.queueNumber || "-"],
+              ["Waktu", new Date(orderDetails.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })],
               ["Pelanggan", orderDetails.customerName],
               ["Pembayaran", orderDetails.paymentMethod],
             ].map(([k, v]) => (
@@ -63,13 +75,13 @@ function ReceiptContent() {
           <div className="border-t border-b border-dashed border-gray-300 py-4 mb-6">
             <h4 className="text-center font-bold text-[#3e2723] mb-4 font-sans">Item Pesanan</h4>
             <div className="space-y-3">
-              {orderDetails.items.map((item, i) => (
-                <div key={i} className="flex justify-between border-b border-dotted border-gray-200 pb-2 last:border-0">
+              {orderDetails.items.map((item: any) => (
+                <div key={item.id} className="flex justify-between border-b border-dotted border-gray-200 pb-2 last:border-0">
                   <div>
-                    <span>{item.Name} ({item.quantity}x)</span>
+                    <span>{item.menuItemName} ({item.quantity}x)</span>
                     {item.topping && <span className="text-xs text-gray-400 block">Topping: {item.topping}</span>}
                   </div>
-                  <span className="whitespace-nowrap ml-4">{formatRupiah(item.Price * item.quantity)}</span>
+                  <span className="whitespace-nowrap ml-4">{formatRupiah(item.price * item.quantity)}</span>
                 </div>
               ))}
             </div>
@@ -83,8 +95,8 @@ function ReceiptContent() {
           </div>
         </div>
       ) : (
-        <div className="bg-[#222] p-8 rounded-2xl border border-[#2A2A2A] text-center">
-          <p className="text-red-400 mb-4">Tidak ada detail pesanan untuk ID: {orderId || "?"}</p>
+        <div className="bg-[#222] p-8 rounded-2xl border border-[#2A2A2A] text-center mb-8">
+          <p className="text-red-400 mb-4">Tidak ada detail pesanan untuk ID ini.</p>
         </div>
       )}
       <div className="flex justify-center gap-4">
@@ -92,7 +104,7 @@ function ReceiptContent() {
           <Printer className="w-4 h-4" />Cetak Struk
         </button>
         <Link href="/menu" className="flex items-center gap-2 border-2 border-[#333] text-[#B8B0A6] px-6 py-3 rounded-xl font-semibold hover:border-[#C8A97E] hover:text-[#C8A97E] transition-all print:hidden">
-          <ArrowLeft className="w-4 h-4" />Menu
+          <ArrowLeft className="w-4 h-4" />Kembali
         </Link>
       </div>
     </div>

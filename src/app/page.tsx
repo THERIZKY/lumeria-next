@@ -3,8 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { useMenuStore } from "@/store/menu";
-import { useHomepageStore } from "@/store/homepage";
 import { useCartStore } from "@/store/cart";
 import { formatRupiah } from "@/data/menu";
 import { toast } from "sonner";
@@ -15,7 +13,7 @@ import {
   StaggerItem,
 } from "@/components/motion/ScrollReveal";
 import { Leaf, Heart, Wallet, ArrowRight, Quote } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMounted } from "@/hooks/useMounted";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -24,14 +22,50 @@ const iconMap: Record<string, React.ReactNode> = {
   wallet: <Wallet className="w-6 h-6" />,
 };
 
+const hardcodedFeatures = [
+  { id: "1", title: "Bahan Premium", description: "Hanya menggunakan bahan berkualitas tinggi untuk rasa terbaik", icon: "leaf" },
+  { id: "2", title: "Dibuat dengan Cinta", description: "Setiap hidangan disiapkan dengan sepenuh hati oleh chef kami", icon: "heart" },
+  { id: "3", title: "Harga Terjangkau", description: "Rasa bintang lima dengan harga pas kantong mahasiswa", icon: "wallet" },
+];
+
 export default function Home() {
-  const menuItems = useMenuStore((state) => state.items);
-  const content = useHomepageStore((state) => state.content);
   const addItem = useCartStore((state) => state.addItem);
   const mounted = useMounted();
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  
+  const [content, setContent] = useState<any>(null);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!mounted) {
+  useEffect(() => {
+    if (!mounted) return;
+    const fetchData = async () => {
+      try {
+        const [menuRes, contentRes] = await Promise.all([
+          fetch("/api/menu"),
+          fetch("/api/homepage")
+        ]);
+        const menuData = await menuRes.json();
+        const contentData = await contentRes.json();
+        setMenuItems(menuData);
+        
+        setContent({
+          heroTitle: contentData.heroTitle,
+          heroSubtitle: contentData.heroSubtitle,
+          marqueeTexts: contentData.marqueeTexts ? JSON.parse(contentData.marqueeTexts) : [],
+          featuredItemIds: contentData.featuredItemIds ? JSON.parse(contentData.featuredItemIds) : [],
+          testimonials: contentData.testimonials ? JSON.parse(contentData.testimonials) : [],
+        });
+      } catch (error) {
+        console.error("Failed to fetch homepage data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [mounted]);
+
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#C8A97E] border-t-transparent rounded-full animate-spin" />
@@ -40,12 +74,12 @@ export default function Home() {
   }
 
   const featuredItems = menuItems.filter((item) =>
-    content.featuredItemIds.includes(item.ID)
+    content?.featuredItemIds.includes(item.id)
   );
 
-  const handleAddToCart = (item: (typeof menuItems)[0]) => {
-    addItem(item);
-    toast.success(`${item.Name} ditambahkan ke keranjang!`);
+  const handleAddToCart = (item: any) => {
+    addItem({ ...item, ID: item.id, Name: item.name, Price: item.price, Image: item.image, Category: item.category?.name });
+    toast.success(`${item.name} ditambahkan ke keranjang!`);
   };
 
   return (
@@ -55,7 +89,7 @@ export default function Home() {
         {/* Background */}
         <div className="absolute inset-0">
           <Image
-            src={content.heroImage}
+            src="/img/dummy-gallery-1.jpg"
             alt="Lumeria Hero"
             fill
             className="object-cover"
@@ -81,7 +115,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="font-[var(--font-heading)] text-5xl md:text-7xl lg:text-8xl font-bold text-[#F5F0EB] mb-6 leading-tight"
           >
-            {content.heroTitle}
+            {content?.heroTitle}
           </motion.h1>
 
           <motion.p
@@ -90,7 +124,7 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.6 }}
             className="text-[#B8B0A6] text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            {content.heroSubtitle}
+            {content?.heroSubtitle}
           </motion.p>
 
           <motion.div
@@ -130,14 +164,16 @@ export default function Home() {
       </section>
 
       {/* Marquee */}
-      <section className="py-6 bg-[#C8A97E] overflow-hidden">
-        <MarqueeText
-          texts={content.marqueeTexts}
-          speed={25}
-          separator="✦"
-          className="text-[#1A1A1A] font-medium text-sm tracking-wide"
-        />
-      </section>
+      {content?.marqueeTexts?.length > 0 && (
+        <section className="py-6 bg-[#C8A97E] overflow-hidden">
+          <MarqueeText
+            texts={content.marqueeTexts}
+            speed={25}
+            separator="✦"
+            className="text-[#1A1A1A] font-medium text-sm tracking-wide"
+          />
+        </section>
+      )}
 
       {/* Featured Menu */}
       <section className="py-20 md:py-28 bg-[#1A1A1A]">
@@ -155,12 +191,12 @@ export default function Home() {
 
           <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" staggerDelay={0.15}>
             {featuredItems.map((item) => (
-              <StaggerItem key={item.ID}>
+              <StaggerItem key={item.id}>
                 <div className="group bg-[#222222] rounded-2xl overflow-hidden border border-[#2A2A2A] hover:border-[#C8A97E]/30 transition-all duration-500">
                   <div className="relative h-[250px] overflow-hidden">
                     <Image
-                      src={item.Image}
-                      alt={item.Name}
+                      src={item.image}
+                      alt={item.name}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover group-hover:scale-110 transition-transform duration-700"
@@ -174,14 +210,14 @@ export default function Home() {
                   </div>
                   <div className="p-6">
                     <h3 className="font-[var(--font-heading)] text-xl font-bold text-[#F5F0EB] mb-2">
-                      {item.Name}
+                      {item.name}
                     </h3>
                     <p className="text-[#B8B0A6] text-sm mb-4 leading-relaxed line-clamp-2">
-                      {item.Description}
+                      {item.description}
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-[#C8A97E] text-xl font-bold">
-                        {formatRupiah(item.Price)}
+                        {formatRupiah(item.price)}
                       </span>
                       <button
                         onClick={() => handleAddToCart(item)}
@@ -211,62 +247,64 @@ export default function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 md:py-28 bg-[#161616]">
-        <div className="container mx-auto px-6">
-          <ScrollReveal>
-            <div className="text-center mb-14">
-              <p className="text-[#C8A97E] text-sm uppercase tracking-[0.3em] mb-3">
-                Testimoni
-              </p>
-              <h2 className="font-[var(--font-heading)] text-4xl md:text-5xl font-bold text-[#F5F0EB]">
-                Apa Kata Mereka
-              </h2>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal>
-            <div className="max-w-3xl mx-auto">
-              <div className="relative bg-[#222222] rounded-2xl p-8 md:p-12 border border-[#2A2A2A]">
-                <Quote className="w-10 h-10 text-[#C8A97E]/30 mb-6" />
-                <motion.div
-                  key={activeTestimonial}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  <p className="text-[#F5F0EB] text-lg md:text-xl leading-relaxed mb-8 italic">
-                    &ldquo;{content.testimonials[activeTestimonial]?.text}&rdquo;
-                  </p>
-                  <div>
-                    <p className="text-[#C8A97E] font-semibold">
-                      {content.testimonials[activeTestimonial]?.name}
-                    </p>
-                    <p className="text-[#B8B0A6] text-sm">
-                      {content.testimonials[activeTestimonial]?.role}
-                    </p>
-                  </div>
-                </motion.div>
+      {content?.testimonials?.length > 0 && (
+        <section className="py-20 md:py-28 bg-[#161616]">
+          <div className="container mx-auto px-6">
+            <ScrollReveal>
+              <div className="text-center mb-14">
+                <p className="text-[#C8A97E] text-sm uppercase tracking-[0.3em] mb-3">
+                  Testimoni
+                </p>
+                <h2 className="font-[var(--font-heading)] text-4xl md:text-5xl font-bold text-[#F5F0EB]">
+                  Apa Kata Mereka
+                </h2>
               </div>
+            </ScrollReveal>
 
-              {/* Dots */}
-              <div className="flex justify-center gap-3 mt-8">
-                {content.testimonials.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveTestimonial(i)}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                      i === activeTestimonial
-                        ? "bg-[#C8A97E] scale-110"
-                        : "bg-[#333] hover:bg-[#555]"
-                    }`}
-                  />
-                ))}
+            <ScrollReveal>
+              <div className="max-w-3xl mx-auto">
+                <div className="relative bg-[#222222] rounded-2xl p-8 md:p-12 border border-[#2A2A2A]">
+                  <Quote className="w-10 h-10 text-[#C8A97E]/30 mb-6" />
+                  <motion.div
+                    key={activeTestimonial}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <p className="text-[#F5F0EB] text-lg md:text-xl leading-relaxed mb-8 italic">
+                      &ldquo;{content.testimonials[activeTestimonial]?.text}&rdquo;
+                    </p>
+                    <div>
+                      <p className="text-[#C8A97E] font-semibold">
+                        {content.testimonials[activeTestimonial]?.name}
+                      </p>
+                      <p className="text-[#B8B0A6] text-sm">
+                        {content.testimonials[activeTestimonial]?.role}
+                      </p>
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Dots */}
+                <div className="flex justify-center gap-3 mt-8">
+                  {content.testimonials.map((_: any, i: number) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveTestimonial(i)}
+                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                        i === activeTestimonial
+                          ? "bg-[#C8A97E] scale-110"
+                          : "bg-[#333] hover:bg-[#555]"
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          </ScrollReveal>
-        </div>
-      </section>
+            </ScrollReveal>
+          </div>
+        </section>
+      )}
 
       {/* Features */}
       <section className="py-20 md:py-28 bg-[#1A1A1A]">
@@ -283,7 +321,7 @@ export default function Home() {
           </ScrollReveal>
 
           <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-8" staggerDelay={0.15}>
-            {content.features.map((feature) => (
+            {hardcodedFeatures.map((feature) => (
               <StaggerItem key={feature.id}>
                 <div className="bg-[#222222] rounded-2xl p-8 border border-[#2A2A2A] hover:border-[#C8A97E]/30 transition-all duration-500 text-center group">
                   <div className="w-14 h-14 bg-[#C8A97E]/10 rounded-full flex items-center justify-center mx-auto mb-6 text-[#C8A97E] group-hover:bg-[#C8A97E]/20 transition-colors">

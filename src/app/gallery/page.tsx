@@ -3,20 +3,46 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { StaggerContainer, StaggerItem, ScrollReveal } from "@/components/motion/ScrollReveal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-
-const galleryItems = [
-  { src: "/img/donat_box.png", caption: "Donat Box", alt: "Donat Box" },
-  { src: "/img/es_lumut.png", caption: "Es Lumut Segar", alt: "Es Lumut" },
-  { src: "/img/piscok_box.png", caption: "Piscok Box", alt: "Piscok Box" },
-  { src: "/img/donat_coklat.png", caption: "Donat Coklat", alt: "Donat Coklat" },
-  { src: "/img/rice_mentega.png", caption: "Rice Bowl Mentega", alt: "Rice Bowl" },
-  { src: "/img/piscok_strawberry.png", caption: "Piscok Strawberry", alt: "Piscok" },
-];
+import { useMounted } from "@/hooks/useMounted";
 
 export default function GalleryPage() {
+  const mounted = useMounted();
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [galleryItems, setGalleryItems] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const fetchData = async () => {
+      try {
+        const [galleryRes, settingsRes] = await Promise.all([
+          fetch("/api/gallery"),
+          fetch("/api/settings")
+        ]);
+        const galleryData = await galleryRes.json();
+        const settingsData = await settingsRes.json();
+        
+        setGalleryItems(galleryData);
+        setSettings(settingsData);
+      } catch (error) {
+        console.error("Failed to fetch gallery data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [mounted]);
+
+  if (!mounted || loading) {
+    return (
+      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#C8A97E] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -34,10 +60,10 @@ export default function GalleryPage() {
       <section className="py-16 bg-[#1A1A1A] flex-grow">
         <div className="container mx-auto px-6">
           <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" staggerDelay={0.1}>
-            {galleryItems.map((item, i) => (
-              <StaggerItem key={i}>
+            {galleryItems.map((item) => (
+              <StaggerItem key={item.id}>
                 <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#222] border border-[#2A2A2A] cursor-pointer hover:border-[#C8A97E]/30 transition-all duration-500" onClick={() => setLightbox(item.src)}>
-                  <Image src={item.src} alt={item.alt} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover group-hover:scale-110 transition-transform duration-700" />
+                  <Image src={item.src} alt={item.alt || item.caption} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover group-hover:scale-110 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="absolute bottom-0 left-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
                     <p className="text-[#F5F0EB] font-medium text-sm">{item.caption}</p>
@@ -46,9 +72,16 @@ export default function GalleryPage() {
               </StaggerItem>
             ))}
           </StaggerContainer>
+          
+          {galleryItems.length === 0 && (
+            <div className="text-center py-20">
+              <p className="text-[#B8B0A6] text-lg">Belum ada foto di galeri.</p>
+            </div>
+          )}
+
           <ScrollReveal delay={0.3}>
             <p className="text-center mt-12 text-[#B8B0A6] text-sm italic">
-              Temukan lebih banyak di <a href="https://www.instagram.com/lumeriaaaa.id" target="_blank" rel="noopener noreferrer" className="text-[#C8A97E] hover:text-[#E8D5B7]">Instagram</a>
+              Temukan lebih banyak di <a href={`https://www.instagram.com/${settings.contactInstagram?.replace('@', '') || 'lumeriaaaa.id'}`} target="_blank" rel="noopener noreferrer" className="text-[#C8A97E] hover:text-[#E8D5B7]">Instagram</a>
             </p>
           </ScrollReveal>
         </div>

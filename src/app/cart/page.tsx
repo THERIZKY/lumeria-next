@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMounted } from "@/hooks/useMounted";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cart";
-import { useOrdersStore } from "@/store/orders";
 import { formatRupiah } from "@/data/menu";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -26,7 +26,6 @@ export default function CartPage() {
   const removeItem = useCartStore((state) => state.removeItem);
   const clearCart = useCartStore((state) => state.clearCart);
   const getTotal = useCartStore((state) => state.getTotal);
-  const addOrder = useOrdersStore((state) => state.addOrder);
 
   const mounted = useMounted();
   const [customerName, setCustomerName] = useState("");
@@ -37,55 +36,91 @@ export default function CartPage() {
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [showQris, setShowQris] = useState(false);
+  const [settings, setSettings] = useState<any>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (mounted) {
+      fetch("/api/settings")
+        .then(res => res.json())
+        .then(data => setSettings(data))
+        .catch(err => console.error("Failed to load settings", err));
+    }
+  }, [mounted]);
 
   const handleCheckout = () => {
     if (!customerName.trim()) {
-      alert("Isi nama pelanggan");
+      toast.error("Isi nama pelanggan");
+      return;
+    }
+    if (status === "mahasiswa" && (!nim.trim() || !kelas.trim())) {
+      toast.error("Isi NIM dan Kelas");
+      return;
+    }
+    if (pickupMethod === "alamat" && !address.trim()) {
+      toast.error("Isi alamat pengiriman");
       return;
     }
     if (!paymentMethod) {
-      alert("Pilih metode pembayaran");
+      toast.error("Pilih metode pembayaran");
       return;
     }
-    if (paymentMethod === "QRIS") {
+    if (paymentMethod === "QRIS" && settings.qrUrl) {
       setShowQris(true);
     } else {
       processOrder();
     }
   };
 
-  const processOrder = () => {
-    const orderId = `ORD-${Date.now().toString().slice(-6)}`;
-    const total = getTotal();
+  const processOrder = async () => {
+    setLoading(true);
+    try {
+      const payload = {
+        customerName,
+        customerStatus: status,
+        nim: status === "mahasiswa" ? nim : null,
+        kelas: status === "mahasiswa" ? kelas : null,
+        pickupMethod,
+        address: pickupMethod === "alamat" ? address : null,
+        paymentMethod,
+        totalAmount: getTotal(),
+        items: cartItems.map(item => ({
+          id: item.ID,
+          name: item.Name,
+          quantity: item.quantity,
+          price: item.Price,
+          topping: item.topping || null
+        }))
+      };
 
-    const orderData = {
-      orderID: orderId,
-      customerName,
-      paymentMethod,
-      items: cartItems,
-      totalAmount: total,
-      orderTime: new Date().toISOString(),
-    };
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-    // Save order to store
-    addOrder(orderData);
+      if (!res.ok) throw new Error("Gagal memproses pesanan");
+      const order = await res.json();
 
-    // Save to sessionStorage for receipt page
-    sessionStorage.setItem(
-      "checkoutDetails",
-      JSON.stringify({ order: orderData }),
-    );
-
-    // Send WhatsApp message
-    const message = `Halo Admin Lumeria\n\nNama: ${customerName}\nPembayaran: ${paymentMethod}\nTotal: ${formatRupiah(total)}\n\nPesanan saya sudah dibayar.`;
-    window.open(
-      `https://wa.me/6288976183041?text=${encodeURIComponent(message)}`,
-      "_blank",
-    );
-
-    // Clear cart and redirect
-    clearCart();
-    router.push(`/receipt?order_id=${orderId}`);
+      // Clear cart and redirect
+      clearCart();
+      router.push(`/receipt?order_id=${order.id}`);
+      
+      // WhatsApp notification
+      const waNumber = settings.contactWhatsApp || "6288976183041";
+      const message = `Halo Admin Lumeria\n\nOrder ID: ${order.orderNumber}\nNama: ${customerName}\nPembayaran: ${paymentMethod}\nTotal: ${formatRupiah(order.totalAmount)}\n\nPesanan saya sudah dibayar.`;
+      window.open(
+        `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`,
+        "_blank",
+      );
+      
+    } catch (error) {
+      console.error(error);
+      toast.error("Terjadi kesalahan saat memproses pesanan");
+    } finally {
+      setLoading(false);
+      setShowQris(false);
+    }
   };
 
   if (!mounted) return null;
@@ -145,13 +180,11 @@ export default function CartPage() {
                       className="flex items-center gap-4 p-6 border-b border-[#2A2A2A] last:border-0"
                     >
                       <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
-                        <Image
-                          src={item.Image}
-                          alt={item.Name}
-                          fill
-                          sizes="80px"
-                          className="object-cover"
-                        />
+                        {item.Image ? (
+                          <Image src={item.Image} alt={item.Name} fill sizes="80px" className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center text-[#555] text-xs">No img</div>
+                        )}
                       </div>
                       <div className="flex-grow min-w-0">
                         <h3 className="font-semibold text-[#F5F0EB] truncate">
@@ -173,16 +206,10 @@ export default function CartPage() {
                                   <SelectValue placeholder="Pilih Topping" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#222] border-[#333] text-[#F5F0EB]">
-                                  <SelectItem value="none">
-                                    Tanpa Topping
-                                  </SelectItem>
-                                  <SelectItem value="Tiramisu">
-                                    Tiramisu
-                                  </SelectItem>
+                                  <SelectItem value="none">Tanpa Topping</SelectItem>
+                                  <SelectItem value="Tiramisu">Tiramisu</SelectItem>
                                   <SelectItem value="Coklat">Coklat</SelectItem>
-                                  <SelectItem value="Strawberry">
-                                    Strawberry
-                                  </SelectItem>
+                                  <SelectItem value="Strawberry">Strawberry</SelectItem>
                                   <SelectItem value="Taro">Taro</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -192,9 +219,7 @@ export default function CartPage() {
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="flex items-center bg-[#1A1A1A] rounded-full border border-[#333]">
                           <button
-                            onClick={() =>
-                              updateQuantity(item.ID, item.quantity - 1)
-                            }
+                            onClick={() => updateQuantity(item.ID, item.quantity - 1)}
                             className="w-8 h-8 flex items-center justify-center text-[#B8B0A6] hover:text-[#C8A97E] transition-colors"
                           >
                             <Minus className="w-3 h-3" />
@@ -203,9 +228,7 @@ export default function CartPage() {
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() =>
-                              updateQuantity(item.ID, item.quantity + 1)
-                            }
+                            onClick={() => updateQuantity(item.ID, item.quantity + 1)}
                             className="w-8 h-8 flex items-center justify-center text-[#B8B0A6] hover:text-[#C8A97E] transition-colors"
                           >
                             <Plus className="w-3 h-3" />
@@ -233,9 +256,7 @@ export default function CartPage() {
                 </h2>
                 <div className="grid gap-4">
                   <div>
-                    <label className="text-[#B8B0A6] text-sm mb-2 block">
-                      Nama Pelanggan
-                    </label>
+                    <label className="text-[#B8B0A6] text-sm mb-2 block">Nama Pelanggan</label>
                     <input
                       placeholder="Masukkan nama Anda"
                       value={customerName}
@@ -244,13 +265,8 @@ export default function CartPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-[#B8B0A6] text-sm mb-2 block">
-                      Status
-                    </label>
-                    <Select
-                      value={status}
-                      onValueChange={(v) => v && setStatus(v)}
-                    >
+                    <label className="text-[#B8B0A6] text-sm mb-2 block">Status</label>
+                    <Select value={status} onValueChange={(v) => v && setStatus(v)}>
                       <SelectTrigger className="bg-[#1A1A1A] border-[#333] text-[#F5F0EB] rounded-xl h-12">
                         <SelectValue />
                       </SelectTrigger>
@@ -263,9 +279,7 @@ export default function CartPage() {
                   {status === "mahasiswa" && (
                     <>
                       <div>
-                        <label className="text-[#B8B0A6] text-sm mb-2 block">
-                          NIM
-                        </label>
+                        <label className="text-[#B8B0A6] text-sm mb-2 block">NIM</label>
                         <input
                           placeholder="Isi NIM"
                           value={nim}
@@ -274,9 +288,7 @@ export default function CartPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-[#B8B0A6] text-sm mb-2 block">
-                          Kelas
-                        </label>
+                        <label className="text-[#B8B0A6] text-sm mb-2 block">Kelas</label>
                         <input
                           placeholder="Isi kelas"
                           value={kelas}
@@ -295,10 +307,7 @@ export default function CartPage() {
                   Pengambilan Pesanan
                 </h2>
                 <div className="grid gap-4">
-                  <Select
-                    value={pickupMethod}
-                    onValueChange={(v) => v && setPickupMethod(v)}
-                  >
+                  <Select value={pickupMethod} onValueChange={(v) => v && setPickupMethod(v)}>
                     <SelectTrigger className="bg-[#1A1A1A] border-[#333] text-[#F5F0EB] rounded-xl h-12">
                       <SelectValue />
                     </SelectTrigger>
@@ -316,11 +325,10 @@ export default function CartPage() {
                       className="w-full bg-[#1A1A1A] border border-[#333] rounded-xl px-4 py-3 text-[#F5F0EB] placeholder:text-[#555] focus:outline-none focus:border-[#C8A97E] transition-colors resize-none"
                     />
                   ) : (
-                    <div className="p-4 bg-[#1A1A1A] border border-[#333] rounded-xl text-[#B8B0A6] text-sm">
+                    <div className="p-4 bg-[#1A1A1A] border border-[#333] rounded-xl text-[#B8B0A6] text-sm whitespace-pre-wrap">
                       📍 Ambil di Tempat:
                       <br />
-                      Telkom University Jakarta Kampus 1<br />
-                      Jl. Daan Mogot KM 11, Jakarta Barat
+                      {settings.storeAddress || "Telkom University Jakarta Kampus 1\nJl. Daan Mogot KM 11, Jakarta Barat"}
                     </div>
                   )}
                 </div>
@@ -331,10 +339,7 @@ export default function CartPage() {
                 <h2 className="font-[var(--font-heading)] text-xl font-bold text-[#F5F0EB] mb-6">
                   Metode Pembayaran
                 </h2>
-                <Select
-                  value={paymentMethod}
-                  onValueChange={(v) => v && setPaymentMethod(v)}
-                >
+                <Select value={paymentMethod} onValueChange={(v) => v && setPaymentMethod(v)}>
                   <SelectTrigger className="bg-[#1A1A1A] border-[#333] text-[#F5F0EB] rounded-xl h-12">
                     <SelectValue placeholder="-- Pilih Metode --" />
                   </SelectTrigger>
@@ -343,6 +348,13 @@ export default function CartPage() {
                     <SelectItem value="QRIS">QRIS</SelectItem>
                   </SelectContent>
                 </Select>
+                {settings.bankAccount && (
+                  <div className="mt-4 p-4 bg-[#1A1A1A] border border-[#333] rounded-xl text-[#B8B0A6] text-sm whitespace-pre-wrap">
+                    💳 Info Rekening:
+                    <br />
+                    {settings.bankAccount}
+                  </div>
+                )}
               </div>
 
               {/* Summary */}
@@ -354,10 +366,12 @@ export default function CartPage() {
                   </span>
                 </div>
                 <button
+                  disabled={loading}
                   onClick={handleCheckout}
-                  className="w-full bg-[#C8A97E] text-[#1A1A1A] py-4 rounded-xl font-bold text-lg hover:bg-[#E8D5B7] transition-all duration-300"
+                  className="flex justify-center items-center gap-2 w-full bg-[#C8A97E] text-[#1A1A1A] py-4 rounded-xl font-bold text-lg hover:bg-[#E8D5B7] transition-all duration-300 disabled:opacity-50"
                 >
-                  Lanjutkan ke Pembayaran
+                  {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                  {loading ? "Memproses..." : "Lanjutkan ke Pembayaran"}
                 </button>
               </div>
             </div>
@@ -383,16 +397,19 @@ export default function CartPage() {
               <h2 className="font-[var(--font-heading)] text-2xl font-bold text-[#F5F0EB] mb-6">
                 Scan QRIS
               </h2>
-              <div className="w-64 h-64 bg-[#1A1A1A] mx-auto mb-8 flex items-center justify-center border-2 border-[#333] rounded-xl">
-                <p className="text-[#555] font-bold text-sm">QRIS IMAGE</p>
+              <div className="relative w-64 h-64 bg-[#1A1A1A] mx-auto mb-8 flex items-center justify-center border-2 border-[#333] rounded-xl overflow-hidden">
+                {settings.qrUrl ? (
+                  <Image src={settings.qrUrl} alt="QRIS" fill className="object-contain" />
+                ) : (
+                  <p className="text-[#555] font-bold text-sm">QRIS IMAGE</p>
+                )}
               </div>
               <button
-                onClick={() => {
-                  setShowQris(false);
-                  processOrder();
-                }}
-                className="w-full bg-[#C8A97E] text-[#1A1A1A] py-4 rounded-xl font-bold text-lg hover:bg-[#E8D5B7] transition-all"
+                disabled={loading}
+                onClick={processOrder}
+                className="flex justify-center items-center gap-2 w-full bg-[#C8A97E] text-[#1A1A1A] py-4 rounded-xl font-bold text-lg hover:bg-[#E8D5B7] transition-all disabled:opacity-50"
               >
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
                 Saya Sudah Bayar
               </button>
             </motion.div>

@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { MenuItem } from '@/data/menu';
+export interface MenuItem {
+  ID: string;
+  Name: string;
+  Price: number;
+  Image: string;
+  Category: string;
+  Description?: string;
+  Rating?: number;
+}
 
 export interface CartItem extends MenuItem {
   quantity: number;

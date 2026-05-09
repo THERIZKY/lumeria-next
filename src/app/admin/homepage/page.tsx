@@ -2,37 +2,121 @@
 
 import { useState, useEffect } from "react";
 import { useMounted } from "@/hooks/useMounted";
-import { useHomepageStore } from "@/store/homepage";
-import { useMenuStore } from "@/store/menu";
-import { Save, RotateCcw, Plus, Trash2 } from "lucide-react";
+import { Save, Plus, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface MenuItem {
+  id: string;
+  name: string;
+}
+
+interface Testimonial {
+  id: string;
+  text: string;
+  name: string;
+  role: string;
+}
+
+interface HomepageContent {
+  heroTitle: string;
+  heroSubtitle: string;
+  marqueeTexts: string[];
+  featuredItemIds: string[];
+  testimonials: Testimonial[];
+  preOrderText: string;
+  preOrderSchedule: string;
+}
+
+const defaultContent: HomepageContent = {
+  heroTitle: "",
+  heroSubtitle: "",
+  marqueeTexts: [],
+  featuredItemIds: [],
+  testimonials: [],
+  preOrderText: "",
+  preOrderSchedule: ""
+};
 
 export default function AdminHomepagePage() {
-  const { content, updateContent, resetContent } = useHomepageStore();
-  const menuItems = useMenuStore((s) => s.items);
   const mounted = useMounted();
-  const [form, setForm] = useState(content);
-  const [saved, setSaved] = useState(false);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [form, setForm] = useState<HomepageContent>(defaultContent);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing form with zustand store content
-  useEffect(() => { setForm(content); }, [content]);
+  useEffect(() => {
+    if (!mounted) return;
+
+    const fetchData = async () => {
+      try {
+        const [menuRes, contentRes] = await Promise.all([
+          fetch("/api/menu"),
+          fetch("/api/homepage")
+        ]);
+        
+        const menuData = await menuRes.json();
+        setMenuItems(menuData);
+
+        const contentData = await contentRes.json();
+        setForm({
+          heroTitle: contentData.heroTitle || "",
+          heroSubtitle: contentData.heroSubtitle || "",
+          marqueeTexts: contentData.marqueeTexts ? JSON.parse(contentData.marqueeTexts) : [],
+          featuredItemIds: contentData.featuredItemIds ? JSON.parse(contentData.featuredItemIds) : [],
+          testimonials: contentData.testimonials ? JSON.parse(contentData.testimonials) : [],
+          preOrderText: contentData.preOrderText || "",
+          preOrderSchedule: contentData.preOrderSchedule || ""
+        });
+      } catch (error) {
+        toast.error("Gagal mengambil data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [mounted]);
+
   if (!mounted) return null;
 
-  const handleSave = () => {
-    updateContent(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        heroTitle: form.heroTitle,
+        heroSubtitle: form.heroSubtitle,
+        marqueeTexts: JSON.stringify(form.marqueeTexts),
+        featuredItemIds: JSON.stringify(form.featuredItemIds),
+        testimonials: JSON.stringify(form.testimonials),
+        preOrderText: form.preOrderText,
+        preOrderSchedule: form.preOrderSchedule
+      };
+
+      const res = await fetch("/api/homepage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Gagal menyimpan data");
+      toast.success("Homepage content berhasil disimpan");
+    } catch (error) {
+      toast.error("Terjadi kesalahan saat menyimpan");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) return <div className="text-[#C8A97E] text-center mt-20">Loading homepage settings...</div>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-[var(--font-heading)] text-3xl font-bold text-[#F5F0EB]">Kelola Homepage</h1>
         <div className="flex gap-3">
-          <button onClick={() => { resetContent(); }} className="flex items-center gap-2 border border-[#333] text-[#B8B0A6] px-4 py-2 rounded-xl text-sm hover:border-[#C8A97E] hover:text-[#C8A97E] transition-all">
-            <RotateCcw className="w-4 h-4" />Reset
-          </button>
-          <button onClick={handleSave} className="flex items-center gap-2 bg-[#C8A97E] text-[#1A1A1A] px-5 py-2 rounded-xl font-semibold text-sm hover:bg-[#E8D5B7] transition-all">
-            <Save className="w-4 h-4" />{saved ? "Tersimpan!" : "Simpan"}
+          <button disabled={saving} onClick={handleSave} className="flex items-center gap-2 bg-[#C8A97E] text-[#1A1A1A] px-5 py-2 rounded-xl font-semibold text-sm hover:bg-[#E8D5B7] transition-all disabled:opacity-50">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saving ? "Menyimpan..." : "Simpan"}
           </button>
         </div>
       </div>
@@ -68,12 +152,12 @@ export default function AdminHomepagePage() {
             {form.featuredItemIds.map((id, i) => (
               <div key={i} className="flex gap-2">
                 <select value={id} onChange={(e) => { const ids = [...form.featuredItemIds]; ids[i] = e.target.value; setForm({ ...form, featuredItemIds: ids }); }} className="flex-grow bg-[#1A1A1A] border border-[#333] rounded-xl px-4 py-2 text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C8A97E]">
-                  {menuItems.map((m) => <option key={m.ID} value={m.ID}>{m.Name}</option>)}
+                  {menuItems.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
                 <button onClick={() => setForm({ ...form, featuredItemIds: form.featuredItemIds.filter((_, j) => j !== i) })} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
               </div>
             ))}
-            <button onClick={() => setForm({ ...form, featuredItemIds: [...form.featuredItemIds, menuItems[0]?.ID || ""] })} className="flex items-center gap-2 text-[#C8A97E] text-sm hover:text-[#E8D5B7]"><Plus className="w-4 h-4" />Tambah item</button>
+            <button onClick={() => setForm({ ...form, featuredItemIds: [...form.featuredItemIds, menuItems[0]?.id || ""] })} className="flex items-center gap-2 text-[#C8A97E] text-sm hover:text-[#E8D5B7]"><Plus className="w-4 h-4" />Tambah item</button>
           </div>
         </div>
 

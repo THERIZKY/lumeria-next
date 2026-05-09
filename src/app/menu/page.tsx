@@ -1,22 +1,47 @@
 "use client";
 
 import Image from "next/image";
-import { CATEGORIES, formatRupiah } from "@/data/menu";
-import { useMenuStore } from "@/store/menu";
+import { formatRupiah } from "@/data/menu";
 import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMounted } from "@/hooks/useMounted";
 
 export default function MenuPage() {
-  const menuItems = useMenuStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const [activeCategory, setActiveCategory] = useState("Semua");
   const mounted = useMounted();
 
-  if (!mounted) {
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const fetchData = async () => {
+      try {
+        const [menuRes, catRes] = await Promise.all([
+          fetch("/api/menu"),
+          fetch("/api/categories")
+        ]);
+        const menuData = await menuRes.json();
+        const catData = await catRes.json();
+        
+        // Only show active items
+        setMenuItems(menuData.filter((i: any) => i.isActive));
+        setCategories(catData);
+      } catch (error) {
+        console.error("Failed to fetch menu data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [mounted]);
+
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#C8A97E] border-t-transparent rounded-full animate-spin" />
@@ -24,17 +49,17 @@ export default function MenuPage() {
     );
   }
 
-  const handleAddToCart = (item: (typeof menuItems)[0]) => {
-    addItem(item);
-    toast.success(`${item.Name} ditambahkan ke keranjang!`);
+  const handleAddToCart = (item: any) => {
+    addItem({ ...item, ID: item.id, Name: item.name, Price: item.price, Image: item.image, Category: item.category?.name });
+    toast.success(`${item.name} ditambahkan ke keranjang!`);
   };
 
   const filteredItems =
     activeCategory === "Semua"
       ? menuItems
-      : menuItems.filter((item) => item.Category === activeCategory);
+      : menuItems.filter((item) => item.category?.name === activeCategory);
 
-  const allCategories = ["Semua", ...CATEGORIES];
+  const allCategories = ["Semua", ...categories.map(c => c.name)];
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -63,7 +88,7 @@ export default function MenuPage() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-[#B8B0A6] text-lg max-w-xl mx-auto"
           >
-            Pilih dari berbagai macam donat, piscok, rice bowl, dan minuman
+            Pilih dari berbagai macam hidangan, donat, dan minuman
             segar favorit kamu.
           </motion.p>
         </div>
@@ -104,7 +129,7 @@ export default function MenuPage() {
             >
               {filteredItems.map((item, i) => (
                 <motion.div
-                  key={item.ID}
+                  key={item.id}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: i * 0.08 }}
@@ -112,8 +137,8 @@ export default function MenuPage() {
                 >
                   <div className="relative h-[220px] overflow-hidden">
                     <Image
-                      src={item.Image}
-                      alt={item.Name}
+                      src={item.image}
+                      alt={item.name}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover group-hover:scale-110 transition-transform duration-700"
@@ -121,10 +146,10 @@ export default function MenuPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-[#222222] via-transparent to-transparent" />
                     <div className="absolute top-4 left-4">
                       <span className="bg-[#1A1A1A]/80 backdrop-blur-sm text-[#C8A97E] text-xs font-medium px-3 py-1 rounded-full">
-                        {item.Category}
+                        {item.category?.name}
                       </span>
                     </div>
-                    {item.Rating >= 4.7 && (
+                    {item.rating >= 4.7 && (
                       <div className="absolute top-4 right-4">
                         <span className="bg-[#C8A97E] text-[#1A1A1A] text-xs font-bold px-3 py-1 rounded-full">
                           Popular
@@ -136,19 +161,19 @@ export default function MenuPage() {
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="font-[var(--font-heading)] text-lg font-bold text-[#F5F0EB]">
-                        {item.Name}
+                        {item.name}
                       </h3>
                       <div className="flex items-center gap-1 text-[#C8A97E] text-sm">
                         <span>★</span>
-                        <span>{item.Rating}</span>
+                        <span>{item.rating}</span>
                       </div>
                     </div>
                     <p className="text-[#B8B0A6] text-sm mb-4 leading-relaxed line-clamp-2">
-                      {item.Description}
+                      {item.description}
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-[#C8A97E] text-lg font-bold">
-                        {formatRupiah(item.Price)}
+                        {formatRupiah(item.price)}
                       </span>
                       <button
                         onClick={() => handleAddToCart(item)}

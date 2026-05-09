@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { useAdminStore } from "@/store/admin";
-import { LayoutDashboard, UtensilsCrossed, Home, ShoppingBag, Settings, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, UtensilsCrossed, Home, ShoppingBag, Settings, LogOut, Menu, Image as ImageIcon } from "lucide-react";
 import { useMounted } from "@/hooks/useMounted";
 
 const sidebarItems = [
   { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { name: "Kelola Menu", path: "/admin/menu", icon: UtensilsCrossed },
+  { name: "Kelola Galeri", path: "/admin/gallery", icon: ImageIcon },
   { name: "Kelola Homepage", path: "/admin/homepage", icon: Home },
   { name: "Orders", path: "/admin/orders", icon: ShoppingBag },
   { name: "Pengaturan", path: "/admin/settings", icon: Settings },
@@ -18,18 +18,48 @@ const sidebarItems = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, username, logout } = useAdminStore();
   const mounted = useMounted();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [user, setUser] = useState<{username: string, role: string} | null>(null);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated && pathname !== "/admin/login") {
+    if (!mounted) return;
+    if (pathname === "/admin/login") return;
+
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        
+        if (data.authenticated) {
+          setIsAuthenticated(true);
+          setUser(data.user);
+        } else {
+          setIsAuthenticated(false);
+          router.push("/admin/login");
+        }
+      } catch (err) {
+        setIsAuthenticated(false);
+        router.push("/admin/login");
+      }
+    };
+
+    checkAuth();
+  }, [mounted, pathname, router]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
       router.push("/admin/login");
+    } catch (err) {
+      console.error("Logout failed", err);
     }
-  }, [mounted, isAuthenticated, pathname, router]);
+  };
 
   if (!mounted) return null;
   if (pathname === "/admin/login") return <>{children}</>;
+  if (isAuthenticated === null) return <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center text-[#C8A97E]">Loading...</div>;
   if (!isAuthenticated) return null;
 
   return (
@@ -53,10 +83,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
         <div className="p-4 border-t border-[#2A2A2A]">
           <div className="flex items-center gap-3 px-4 py-2 mb-2">
-            <div className="w-8 h-8 bg-[#C8A97E]/10 rounded-full flex items-center justify-center text-[#C8A97E] text-sm font-bold">{username.charAt(0).toUpperCase()}</div>
-            <span className="text-[#F5F0EB] text-sm font-medium">{username}</span>
+            <div className="w-8 h-8 bg-[#C8A97E]/10 rounded-full flex items-center justify-center text-[#C8A97E] text-sm font-bold">{user?.username.charAt(0).toUpperCase()}</div>
+            <span className="text-[#F5F0EB] text-sm font-medium">{user?.username}</span>
           </div>
-          <button onClick={() => { logout(); router.push("/admin/login"); }} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-400/10 transition-all w-full">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-400/10 transition-all w-full">
             <LogOut className="w-4 h-4" />Logout
           </button>
         </div>
